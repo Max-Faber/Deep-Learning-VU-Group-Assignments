@@ -1,5 +1,6 @@
 import torch
 import torchvision
+import time
 import torch.nn as nn
 import torch.optim as optim
 from question7 import split_train_validation, gen_batches
@@ -11,14 +12,14 @@ class CNN_MNIST(nn.Module):
         self.batch_size = batch_size
 
         self.relu = nn.ReLU()
-        self.conv1_2d = nn.Conv2d(1, 16, 3, 1, 1, device=device)
-        self.max_pool1 = nn.MaxPool2d(2)
-        self.conv2_2d = nn.Conv2d(16, 32, 3, 1, 1, device=device)
-        self.max_pool2 = nn.MaxPool2d(2)
-        self.conv3_2d = nn.Conv2d(32, 64, 3, 1, 1, device=device)
-        self.max_pool3 = nn.MaxPool2d(2)
+        self.conv1_2d = nn.Conv2d(1, 16, (3, 3), 1, 1, device=device)
+        self.max_pool1 = nn.MaxPool2d((2, 2))
+        self.conv2_2d = nn.Conv2d(16, 32, (3, 3), 1, 1, device=device)
+        self.max_pool2 = nn.MaxPool2d((2, 2))
+        self.conv3_2d = nn.Conv2d(32, 64, (3, 3), 1, 1, device=device)
+        self.max_pool3 = nn.MaxPool2d((2, 2))
         self.linear1 = nn.Linear(64 * 3 * 3, 10, device=device)
-        self.linear2 = nn.Linear(10, 10)
+        # self.linear2 = nn.Linear(10, 10)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
@@ -33,39 +34,43 @@ class CNN_MNIST(nn.Module):
         x = self.max_pool3(x)
         x = torch.reshape(input=x, shape=(self.batch_size, 64 * 3 * 3))
         x = self.linear1(x)
-        x = self.linear2(x)
+        # x = self.linear2(x)
         x = self.softmax(x)
         return x
 
 def training_loop(epochs, X, Y, cnn, criterion, optimizer):
+    n_batches = len(X)
+    n_instances = n_batches * batch_size
     for epoch in range(epochs):
         running_loss = 0.0
-        for i in range(len(X)):
+        n_correct = 0
+        start = time.time()
+        for i in range(n_batches):
             inputs, labels = X[i], Y[i]
 
             optimizer.zero_grad()
             outputs = cnn(inputs)
+            predicted_classes = torch.argmax(outputs, dim=1)
+            n_correct += (predicted_classes == labels).sum()
             outputs = torch.max(outputs, dim=1)
             loss = criterion(outputs.values, labels)
             loss.backward()
             optimizer.step()
 
             running_loss += loss.item()
-            if i % 1000 == 999:
-                print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 1000:.3f}')
-                running_loss = 0.0
+        print(f'Epoch {epoch + 1}/{epochs}, loss: {(running_loss / n_batches):.3f}, accuracy: {(n_correct / n_instances):.3f}, time: {(time.time() - start):2f} seconds')
 
 if __name__ == '__main__':
     batch_size = 16
-    epochs = 5
-    learning_rate = 0.001
+    epochs = 20
+    learning_rate = 0.01
     device_name = 'cpu'
 
     if torch.cuda.is_available():
         device_name = 'cuda:0'
     elif torch.backends.mps.is_available():
         device_name = 'mps'
-    device = torch.device('mps')
+    device = torch.device(device_name)
 
     train = torchvision.datasets.MNIST(root='MNIST_dataset', train=True, download=True, transform=ToTensor())
     test = torchvision.datasets.MNIST(root='MNIST_dataset', train=False, download=True, transform=ToTensor())
