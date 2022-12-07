@@ -41,6 +41,7 @@ class CNN_MNIST(nn.Module):
 def training_loop(epochs, dataset, cnn, criterion, optimizer):
     n_batches = len(dataset)
     n_instances = n_batches * batch_size
+    cnn.train()
     for epoch in range(epochs):
         running_loss = 0.0
         n_correct = 0
@@ -48,6 +49,7 @@ def training_loop(epochs, dataset, cnn, criterion, optimizer):
         for inputs, labels in dataset:
             inputs, labels = inputs.to(device), labels.to(device)
 
+            optimizer.zero_grad()
             outputs = cnn(inputs)
             predicted_classes = torch.argmax(outputs, dim=1)
             n_correct += (predicted_classes == labels).sum().item()
