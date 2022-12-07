@@ -3,6 +3,7 @@ import torchvision
 import time
 import torch.nn as nn
 import torch.optim as optim
+import os
 from question7 import split_train_validation
 from torchvision.transforms import ToTensor
 
@@ -71,8 +72,11 @@ if __name__ == '__main__':
         device_name = 'mps'
     device = torch.device(device_name)
 
-    train = torchvision.datasets.MNIST(root='MNIST_dataset', train=True, download=True, transform=ToTensor())
-    test = torchvision.datasets.MNIST(root='MNIST_dataset', train=False, download=True, transform=ToTensor())
+    path_dataset = 'MNIST_dataset'
+    if not os.path.exists(path_dataset):
+        os.mkdir(path_dataset)
+    train = torchvision.datasets.MNIST(root=path_dataset, train=True, download=True, transform=ToTensor())
+    test = torchvision.datasets.MNIST(root=path_dataset, train=False, download=True, transform=ToTensor())
     train_batches, val_batches = split_train_validation(training_data=train, batch_size=batch_size)
 
     cnn = CNN_MNIST(batch_size=batch_size, device=device)
