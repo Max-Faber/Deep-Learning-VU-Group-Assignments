@@ -1,6 +1,6 @@
 import torch
 
-def gen_batches(data, batch_size):
+def gen_batches(data, batch_size, device):
     batched_data_x = torch.tensor([])
     batched_data_y = torch.tensor([])
     n_samples = len(data)
@@ -14,13 +14,15 @@ def gen_batches(data, batch_size):
         batch_y = torch.stack([batch_y])
         batched_data_x = torch.cat((batched_data_x, batch_x), 0)
         batched_data_y = torch.cat((batched_data_y, batch_y), 0)
+    batched_data_x = batched_data_x.to(device)
+    batched_data_y = batched_data_y.to(device)
     return batched_data_x, batched_data_y
 
-def split_train_validation(training_data, batch_size, n_train=50000, n_validation=10000):
+def split_train_validation(training_data, batch_size, device, n_train=50000, n_validation=10000):
     # Split the data to train/test with a ratio of 50000:10000
     train, val = torch.utils.data.random_split(training_data, [n_train, n_validation])
     # Generate batches of the training data
-    train_batches_x, train_batches_y = gen_batches(train, batch_size=batch_size)
+    train_batches_x, train_batches_y = gen_batches(train, batch_size=batch_size, device=device)
     # Generate batches of the validation data
-    val_batches_x, val_batches_y = gen_batches(val, batch_size=batch_size)
+    val_batches_x, val_batches_y = gen_batches(val, batch_size=batch_size, device=device)
     return train_batches_x, train_batches_y, val_batches_x, val_batches_y
