@@ -20,7 +20,6 @@ class CNN_MNIST(nn.Module):
         self.conv3_2d = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3, 3), stride=1, padding=1, device=device)
         self.max_pool3 = nn.MaxPool2d(kernel_size=(2, 2))
         self.linear1 = nn.Linear(in_features=64 * 3 * 3, out_features=10, device=device)
-        #self.linear2 = nn.Linear(10, 10)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
@@ -35,11 +34,10 @@ class CNN_MNIST(nn.Module):
         x = self.max_pool3(x)
         x = torch.reshape(input=x, shape=(self.batch_size, 64 * 3 * 3))
         x = self.linear1(x)
-        #x = self.linear2(x)
         x = self.softmax(x)
         return x
 
-def training_loop(epochs, dataset, cnn, criterion, optimizer):
+def training_loop(epochs, dataset, cnn, criterion, optimizer, batch_size, device):
     n_batches = len(dataset)
     n_instances = n_batches * batch_size
     cnn.train()
@@ -60,7 +58,7 @@ def training_loop(epochs, dataset, cnn, criterion, optimizer):
             optimizer.step()
         print(f'Epoch {epoch + 1}/{epochs}, loss: {(running_loss / n_batches):.3f}, accuracy: {(n_correct / n_instances):.3f}, time: {(time.time() - start):2f} seconds')
 
-if __name__ == '__main__':
+def cnn(transform):
     batch_size = 16
     epochs = 20
     learning_rate = 0.001
@@ -75,8 +73,8 @@ if __name__ == '__main__':
     path_dataset = 'MNIST_dataset'
     if not os.path.exists(path_dataset):
         os.mkdir(path_dataset)
-    train = torchvision.datasets.MNIST(root=path_dataset, train=True, download=True, transform=ToTensor())
-    test = torchvision.datasets.MNIST(root=path_dataset, train=False, download=True, transform=ToTensor())
+    train = torchvision.datasets.MNIST(root=path_dataset, train=True, download=True, transform=transform)
+    test = torchvision.datasets.MNIST(root=path_dataset, train=False, download=True, transform=transform)
     train_batches, val_batches = split_train_validation(training_data=train, batch_size=batch_size)
 
     cnn = CNN_MNIST(batch_size=batch_size, device=device)
@@ -84,4 +82,7 @@ if __name__ == '__main__':
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(cnn.parameters(), lr=learning_rate)
 
-    training_loop(epochs=epochs, dataset=train_batches, cnn=cnn, criterion=criterion, optimizer=optimizer)
+    training_loop(epochs=epochs, dataset=train_batches, cnn=cnn, criterion=criterion, optimizer=optimizer, batch_size=batch_size, device=device)
+
+if __name__ == '__main__':
+    cnn(transform=ToTensor())
