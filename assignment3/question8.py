@@ -37,15 +37,21 @@ class CNN_MNIST(nn.Module):
         x = self.softmax(x)
         return x
 
-def training_loop(epochs, dataset, cnn, criterion, optimizer, batch_size, device):
-    n_batches = len(dataset)
-    n_instances = n_batches * batch_size
+def training_loop(epochs, train_dataset, val_dataset, cnn, criterion, optimizer, batch_size, device):
+    train_n_batches = len(train_dataset)
+    train_n_instances = train_n_batches * batch_size
+    val_n_batches = len(val_dataset)
+    val_n_instances = val_n_batches * batch_size
+
+    val_results = {'accuracy': [],
+                   'loss': [],
+                   'epoch': []}
     cnn.train()
     for epoch in range(epochs):
         running_loss = 0.0
         n_correct = 0
         start = time.time()
-        for inputs, labels in dataset:
+        for inputs, labels in train_dataset:
             inputs, labels = inputs.to(device), labels.to(device)
 
             optimizer.zero_grad()
@@ -56,11 +62,28 @@ def training_loop(epochs, dataset, cnn, criterion, optimizer, batch_size, device
             running_loss += loss.item()
             loss.backward()
             optimizer.step()
-        print(f'Epoch {epoch + 1}/{epochs}, loss: {(running_loss / n_batches):.3f}, accuracy: {(n_correct / n_instances):.3f}, time: {(time.time() - start):2f} seconds')
+
+        print(f'Epoch {epoch + 1}/{epochs}, loss: {(running_loss / train_n_batches):.3f}, accuracy: {(n_correct / train_n_instances):.3f}, time: {(time.time() - start):2f} seconds')
+
+        val_n_correct = 0
+        val_running_loss = 0.0
+        for inputs, labels in val_dataset:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = cnn(inputs)
+            predicted_classes = torch.argmax(outputs, dim=1)
+            val_n_correct += (predicted_classes == labels).sum().item()
+            loss = criterion(outputs, labels.type(torch.long))
+            val_running_loss += loss
+        print(f"Epoch {epoch + 1}, val accuracy: {(val_n_correct / val_n_instances):.3f}")
+        val_results['accuracy'].append(val_n_correct / val_n_instances)
+        val_results['loss'].append(val_running_loss)
+        val_results['epoch'].append(epoch + 1)
+
+    return val_results
 
 def cnn(transform):
     batch_size = 16
-    epochs = 20
+    epochs = 10
     learning_rate = 0.001
     device_name = 'cpu'
 
@@ -69,6 +92,7 @@ def cnn(transform):
     elif torch.backends.mps.is_available():
         device_name = 'mps'
     device = torch.device(device_name)
+    print(f"Using device: {device_name}")
 
     path_dataset = 'MNIST_dataset'
     if not os.path.exists(path_dataset):
@@ -82,7 +106,9 @@ def cnn(transform):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(cnn.parameters(), lr=learning_rate)
 
-    training_loop(epochs=epochs, dataset=train_batches, cnn=cnn, criterion=criterion, optimizer=optimizer, batch_size=batch_size, device=device)
+    val_results = training_loop(epochs=epochs, train_dataset=train_batches, val_dataset= val_batches, cnn=cnn, criterion=criterion, optimizer=optimizer, batch_size=batch_size, device=device)
+
+    return val_results
 
 if __name__ == '__main__':
     cnn(transform=ToTensor())
