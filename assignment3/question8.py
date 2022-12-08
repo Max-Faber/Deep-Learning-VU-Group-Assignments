@@ -20,7 +20,7 @@ class CNN_MNIST(nn.Module):
         self.conv3_2d = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3, 3), stride=1, padding=1, device=device)
         self.max_pool3 = nn.MaxPool2d(kernel_size=(2, 2))
         self.linear1 = nn.Linear(in_features=64 * 3 * 3, out_features=10, device=device)
-        self.linear2 = nn.Linear(10, 10)
+        #self.linear2 = nn.Linear(10, 10)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
@@ -35,7 +35,7 @@ class CNN_MNIST(nn.Module):
         x = self.max_pool3(x)
         x = torch.reshape(input=x, shape=(self.batch_size, 64 * 3 * 3))
         x = self.linear1(x)
-        x = self.linear2(x)
+        #x = self.linear2(x)
         x = self.softmax(x)
         return x
 
