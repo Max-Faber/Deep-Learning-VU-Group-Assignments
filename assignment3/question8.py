@@ -83,10 +83,7 @@ def training_loop(epochs, train_dataset, val_dataset, cnn, criterion, optimizer,
     torch.save(cnn, f'models/cnn_mnist_{datetime.now()}.pt')
     return val_results
 
-def cnn(transform):
-    batch_size = 16
-    epochs = 10
-    learning_rate = 0.001
+def get_device():
     device_name = 'cpu'
 
     if torch.cuda.is_available():
@@ -95,27 +92,54 @@ def cnn(transform):
         device_name = 'mps'
     device = torch.device(device_name)
     print(f"Using device: {device_name}")
+    return device
 
+def get_batch_size():
+    return 16
+
+def load_dataset(transform, batch_size):
     path_dataset = 'MNIST_dataset'
     if not os.path.exists(path_dataset):
         os.mkdir(path_dataset)
     train_transformed = torchvision.datasets.MNIST(root=path_dataset, train=True, download=True, transform=transform)
     train_tensor = torchvision.datasets.MNIST(root=path_dataset, train=True, download=True, transform=ToTensor())
-    test = torchvision.datasets.MNIST(root=path_dataset, train=False, download=True, transform=ToTensor())
 
     train_transformed_batches, val_transformed_batches = split_train_validation(training_data=train_transformed, batch_size=batch_size)
     train_tensor_batches, val_tensor_batches = split_train_validation(training_data=train_tensor, batch_size=batch_size)
 
     del train_transformed, train_tensor, val_transformed_batches, train_tensor_batches
+    return train_transformed_batches, val_tensor_batches
+
+def cnn(train, val, batch_size):
+    epochs = 10
+    learning_rate = 0.001
+    device = get_device()
 
     cnn = CNN_MNIST(batch_size=batch_size, device=device)
     cnn.to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(cnn.parameters(), lr=learning_rate)
 
-    val_results = training_loop(epochs=epochs, train_dataset=train_transformed_batches, val_dataset=val_tensor_batches, cnn=cnn, criterion=criterion, optimizer=optimizer, batch_size=batch_size, device=device)
-
+    val_results = training_loop(epochs=epochs, train_dataset=train, val_dataset=val, cnn=cnn, criterion=criterion, optimizer=optimizer, batch_size=batch_size, device=device)
     return val_results
 
+def evaluate(test_set, cnn, criterion, device, batch_size):
+    val_n_batches = len(test_set)
+    val_n_instances = val_n_batches * batch_size
+    test_n_correct = 0
+    val_running_loss = 0.0
+    for inputs, labels in test_set:
+        inputs, labels = inputs.to(device), labels.to(device)
+        outputs = cnn(inputs)
+        predicted_classes = torch.argmax(outputs, dim=1)
+        test_n_correct += (predicted_classes == labels).sum().item()
+        loss = criterion(outputs, labels.type(torch.long))
+        val_running_loss += loss.item()
+    accuracy = test_n_correct / val_n_instances
+    loss = val_running_loss
+    return accuracy, loss
+
 if __name__ == '__main__':
-    cnn(transform=ToTensor())
+    batch_size = get_batch_size()
+    train_transformed_batches, val_tensor_batches = load_dataset(transform=ToTensor(), batch_size=batch_size)
+    cnn(train=train_transformed_batches, val=val_tensor_batches, batch_size=batch_size)
