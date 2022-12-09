@@ -1,9 +1,10 @@
 import torch
 import torchvision
-import time
 import torch.nn as nn
 import torch.optim as optim
 import os
+import time
+from datetime import datetime
 from question7 import split_train_validation
 from torchvision.transforms import ToTensor
 
@@ -73,12 +74,13 @@ def training_loop(epochs, train_dataset, val_dataset, cnn, criterion, optimizer,
             predicted_classes = torch.argmax(outputs, dim=1)
             val_n_correct += (predicted_classes == labels).sum().item()
             loss = criterion(outputs, labels.type(torch.long))
-            val_running_loss += loss
+            val_running_loss += loss.item()
         print(f"Epoch {epoch + 1}, val accuracy: {(val_n_correct / val_n_instances):.3f}")
         val_results['accuracy'].append(val_n_correct / val_n_instances)
         val_results['loss'].append(val_running_loss)
         val_results['epoch'].append(epoch + 1)
 
+    torch.save(cnn, f'models/cnn_mnist_{datetime.now()}.pt')
     return val_results
 
 def cnn(transform):
@@ -97,16 +99,21 @@ def cnn(transform):
     path_dataset = 'MNIST_dataset'
     if not os.path.exists(path_dataset):
         os.mkdir(path_dataset)
-    train = torchvision.datasets.MNIST(root=path_dataset, train=True, download=True, transform=transform)
-    test = torchvision.datasets.MNIST(root=path_dataset, train=False, download=True, transform=transform)
-    train_batches, val_batches = split_train_validation(training_data=train, batch_size=batch_size)
+    train_transformed = torchvision.datasets.MNIST(root=path_dataset, train=True, download=True, transform=transform)
+    train_tensor = torchvision.datasets.MNIST(root=path_dataset, train=True, download=True, transform=ToTensor())
+    test = torchvision.datasets.MNIST(root=path_dataset, train=False, download=True, transform=ToTensor())
+
+    train_transformed_batches, val_transformed_batches = split_train_validation(training_data=train_transformed, batch_size=batch_size)
+    train_tensor_batches, val_tensor_batches = split_train_validation(training_data=train_tensor, batch_size=batch_size)
+
+    del train_transformed, train_tensor, val_transformed_batches, train_tensor_batches
 
     cnn = CNN_MNIST(batch_size=batch_size, device=device)
     cnn.to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(cnn.parameters(), lr=learning_rate)
 
-    val_results = training_loop(epochs=epochs, train_dataset=train_batches, val_dataset= val_batches, cnn=cnn, criterion=criterion, optimizer=optimizer, batch_size=batch_size, device=device)
+    val_results = training_loop(epochs=epochs, train_dataset=train_transformed_batches, val_dataset=val_tensor_batches, cnn=cnn, criterion=criterion, optimizer=optimizer, batch_size=batch_size, device=device)
 
     return val_results
 
