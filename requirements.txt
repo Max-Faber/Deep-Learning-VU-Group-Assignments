@@ -3,3 +3,5 @@ torchvision
 torchaudio
 scipy
 numpy
+torch_geometric
+matplotlib
